@@ -1,0 +1,972 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Word Predictor</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        :root {
+            --primary-color: #04320f;
+            --secondary-color: #e0f2e9;
+            --text-color: #333;
+            --bg-color: #f5f5f5;
+            --card-bg: #ffffff;
+            --shadow: rgba(0, 0, 0, 0.1);
+            --transition: all 0.3s ease;
+        }
+        
+        .dark-mode {
+            --primary-color: #2a9d8f;
+            --secondary-color: #264653;
+            --text-color: #e0e0e0;
+            --bg-color: #121212;
+            --card-bg: #1e1e1e;
+            --shadow: rgba(0, 0, 0, 0.4);
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            transition: var(--transition);
+        }
+        
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+            position: relative;
+        }
+        
+        /* Modified falling letters animation */
+        .falling-letters {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            pointer-events: none;
+            z-index: 0;
+        }
+        
+        .letter {
+            position: absolute;
+            color: var(--primary-color);
+            opacity: 0.4;
+            font-size: 24px;
+            font-weight: bold;
+            animation: letterFall linear infinite;
+        }
+        
+        @keyframes letterFall {
+            0% {
+                transform: translateY(-100px) rotate(0deg);
+                opacity: 0;
+            }
+            10% {
+                opacity: 0.4;
+            }
+            90% {
+                opacity: 0.4;
+            }
+            100% {
+                transform: translateY(calc(100vh + 100px)) rotate(360deg);
+                opacity: 0;
+            }
+        }
+        
+        .theme-toggle {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 100;
+            background: var(--card-bg);
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 2px 10px var(--shadow);
+            color: var(--primary-color);
+            font-size: 18px;
+        }
+        
+        .particles-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            z-index: -1;
+        }
+        
+        .particle {
+            position: absolute;
+            border-radius: 50%;
+            background: var(--primary-color);
+            opacity: 0.3;
+            animation: float 15s infinite linear;
+        }
+        
+        @keyframes float {
+            0% {
+                transform: translateY(0) translateX(0) rotate(0deg);
+                opacity: 0;
+            }
+            10% {
+                opacity: 0.5;
+            }
+            90% {
+                opacity: 0.5;
+            }
+            100% {
+                transform: translateY(-1000px) translateX(100px) rotate(360deg);
+                opacity: 0;
+            }
+        }
+        
+        /* Modified header with background image */
+        header {
+            text-align: center;
+            padding: 40px 20px 20px;
+            background: linear-gradient(135deg, rgba(4, 50, 15, 0.85), rgba(224, 242, 233, 0.85)), 
+                        url('https://i.etsystatic.com/6799402/r/il/040f42/3318979773/il_570xN.3318979773_g1r4.jpg');
+            background-size: cover;
+            background-position: center;
+            color: white;
+            clip-path: polygon(0 0, 100% 0, 100% 85%, 0 100%);
+            margin-bottom: 30px;
+            position: relative;
+            z-index: 1;
+        }
+        
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+        }
+        
+        .tagline {
+            font-size: 1.2rem;
+            opacity: 0.9;
+            max-width: 600px;
+            margin: 0 auto 20px;
+        }
+        
+        main {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 0 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+            flex: 1;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .predictor-card {
+            background-color: var(--card-bg);
+            border-radius: 15px;
+            box-shadow: 0 10px 30px var(--shadow);
+            width: 100%;
+            max-width: 600px;
+            padding: 30px;
+            margin-bottom: 30px;
+            transform: translateY(0);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .predictor-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px var(--shadow);
+        }
+        
+        .input-container {
+            position: relative;
+            margin-bottom: 20px;
+        }
+        
+        .input-container i {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--primary-color);
+        }
+        
+        #textInput {
+            width: 100%;
+            padding: 15px 15px 15px 45px;
+            border: 2px solid transparent;
+            border-radius: 10px;
+            font-size: 16px;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            transition: all 0.3s ease;
+        }
+        
+        #textInput:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(4, 50, 15, 0.2);
+        }
+        
+        /* Voice controls */
+        .voice-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .voice-btn {
+            flex: 1;
+            padding: 12px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: all 0.3s ease;
+        }
+        
+        .voice-btn.listening {
+            background-color: #ff4d4d;
+            animation: pulse 1.5s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        
+        .voice-status {
+            font-size: 14px;
+            text-align: center;
+            margin-top: 10px;
+            color: var(--primary-color);
+            min-height: 20px;
+        }
+        
+        .buttons-container {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        button {
+            padding: 12px 20px;
+            font-size: 16px;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            flex: 1;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(4, 50, 15, 0.3);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        button.secondary {
+            background-color: transparent;
+            border: 2px solid var(--primary-color);
+            color: var(--primary-color);
+        }
+        
+        .result-container {
+            background-color: var(--bg-color);
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 10px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        #result {
+            font-size: 18px;
+            color: var(--text-color);
+            transition: opacity 0.3s ease;
+        }
+        
+        .prediction-highlight {
+            color: var(--primary-color);
+            font-weight: bold;
+            position: relative;
+        }
+        
+        .prediction-highlight::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background-color: var(--primary-color);
+            animation: underline 2s infinite;
+        }
+        
+        @keyframes underline {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 1; }
+        }
+        
+        .loader {
+            display: none;
+            width: 24px;
+            height: 24px;
+            border: 3px solid var(--bg-color);
+            border-radius: 50%;
+            border-top-color: var(--primary-color);
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .history-section {
+            width: 100%;
+            max-width: 600px;
+            margin-top: 20px;
+        }
+        
+        .history-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .history-title {
+            font-size: 1.2rem;
+            color: var(--text-color);
+        }
+        
+        .history-list {
+            background-color: var(--card-bg);
+            border-radius: 15px;
+            box-shadow: 0 5px 15px var(--shadow);
+            overflow: hidden;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .history-item {
+            padding: 15px 20px;
+            border-bottom: 1px solid var(--bg-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .history-item:last-child {
+            border-bottom: none;
+        }
+        
+        .history-text {
+            flex: 1;
+        }
+        
+        .history-input {
+            color: var(--text-color);
+            font-size: 14px;
+            margin-bottom: 5px;
+        }
+        
+        .history-prediction {
+            color: var(--primary-color);
+            font-weight: bold;
+        }
+        
+        .history-actions {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .history-action {
+            background: none;
+            border: none;
+            color: var(--primary-color);
+            cursor: pointer;
+            font-size: 16px;
+            padding: 5px;
+            border-radius: 5px;
+            transition: background-color 0.2s;
+        }
+        
+        .history-action:hover {
+            background-color: var(--bg-color);
+        }
+        
+        .empty-history {
+            padding: 30px;
+            text-align: center;
+            color: var(--text-color);
+            opacity: 0.7;
+        }
+        
+        footer {
+            text-align: center;
+            padding: 20px;
+            margin-top: 40px;
+            color: var(--text-color);
+            opacity: 0.7;
+            font-size: 14px;
+            position: relative;
+            z-index: 1;
+        }
+        
+        @media (max-width: 768px) {
+            header {
+                padding: 30px 20px 40px;
+            }
+            h1 {
+                font-size: 2rem;
+            }
+            .predictor-card {
+                padding: 20px;
+            }
+            .buttons-container, .voice-controls {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="falling-letters" id="falling-letters"></div>
+    <button class="theme-toggle" id="themeToggle">
+        <i class="fas fa-moon"></i>
+    </button>
+    <div class="particles-container" id="particles"></div>
+    <header>
+        <h1>Next Word Prediction</h1>
+        <p class="tagline">Type or speak a sentence and our AI will predict what comes next, helping you write faster and smarter.</p>
+    </header>
+    <main>
+        <div class="predictor-card">
+            <div class="input-container">
+                <i class="fas fa-keyboard"></i>
+                <input type="text" id="textInput" placeholder="Start typing a sentence..." autocomplete="off">
+            </div>
+            
+            <!-- Voice controls -->
+            <div class="voice-controls">
+                <button id="voiceInputBtn" class="voice-btn secondary">
+                    <i class="fas fa-microphone"></i>
+                    Voice Input
+                </button>
+                <button id="readResultBtn" class="voice-btn secondary">
+                    <i class="fas fa-volume-up"></i>
+                    Read Result
+                </button>
+            </div>
+            <div class="voice-status" id="voiceStatus"></div>
+            
+            <div class="buttons-container">
+                <button id="predictBtn">
+                    <i class="fas fa-magic"></i>
+                    Predict Next Word
+                </button>
+                <button class="secondary" id="clearBtn">
+                    <i class="fas fa-eraser"></i>
+                    Clear
+                </button>
+            </div>
+            <div class="result-container">
+                <div class="loader" id="loader"></div>
+                <p id="result">Your prediction will appear here</p>
+            </div>
+        </div>
+        <div class="history-section">
+            <div class="history-header">
+                <h2 class="history-title">Previous Predictions</h2>
+                <button class="secondary" id="clearHistoryBtn">
+                    <i class="fas fa-trash-alt"></i>
+                    Clear History
+                </button>
+            </div>
+            <div class="history-list" id="historyList">
+                <div class="empty-history">No predictions yet</div>
+            </div>
+        </div>
+    </main>
+    <footer>
+        &copy; 2025 Smart Word Predictor | Powered by Team 7
+    </footer>
+    <script>
+        // Create falling letters animation - MODIFIED
+        const fallingLetters = document.getElementById("falling-letters");
+        
+        function createFallingLetters() {
+            fallingLetters.innerHTML = ''; // Clear existing letters
+            const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+            const words = ["AI", "ML", "NLP", "GPT", "BERT", "WORD", "TEXT", "PREDICT"];
+            
+            // Create 40 falling elements (mix of letters and words)
+            for (let i = 0; i < 40; i++) {
+                const element = document.createElement("div");
+                element.className = "letter";
+                
+                // 70% chance of single letter, 30% chance of word
+                if (Math.random() < 0.7) {
+                    element.innerText = letters[Math.floor(Math.random() * letters.length)];
+                } else {
+                    element.innerText = words[Math.floor(Math.random() * words.length)];
+                    element.style.fontSize = '16px'; // Smaller font for words
+                }
+                
+                // Random position
+                element.style.left = Math.random() * 100 + "vw";
+                
+                // Random fall speed (between 5 and 15 seconds)
+                const duration = Math.random() * 10 + 5;
+                element.style.animationDuration = `${duration}s`;
+                
+                // Random delay so they don't all start at once
+                element.style.animationDelay = `${Math.random() * 10}s`;
+                
+                // Random rotation
+                const rotation = Math.random() * 360;
+                element.style.transform = `rotate(${rotation}deg)`;
+                
+                fallingLetters.appendChild(element);
+            }
+        }
+        
+        createFallingLetters();
+        
+        // Recreate falling letters every minute to keep the animation fresh
+        setInterval(createFallingLetters, 60000);
+
+        // Theme toggle functionality
+        const themeToggle = document.getElementById('themeToggle');
+        const body = document.body;
+        const themeIcon = themeToggle.querySelector('i');
+        
+        // Check for saved theme preference
+        if (localStorage.getItem('theme') === 'dark') {
+            body.classList.add('dark-mode');
+            themeIcon.classList.replace('fa-moon', 'fa-sun');
+        }
+        
+        themeToggle.addEventListener('click', () => {
+            body.classList.toggle('dark-mode');
+            
+            if (body.classList.contains('dark-mode')) {
+                themeIcon.classList.replace('fa-moon', 'fa-sun');
+                localStorage.setItem('theme', 'dark');
+            } else {
+                themeIcon.classList.replace('fa-sun', 'fa-moon');
+                localStorage.setItem('theme', 'light');
+            }
+        });
+        
+        // Create floating particles
+        const particlesContainer = document.getElementById('particles');
+        
+        function createParticles() {
+            particlesContainer.innerHTML = '';
+            const particleCount = window.innerWidth < 768 ? 15 : 30;
+            
+            for (let i = 0; i < particleCount; i++) {
+                const particle = document.createElement('div');
+                particle.classList.add('particle');
+                
+                // Random size between 5px and 30px
+                const size = Math.random() * 25 + 5;
+                particle.style.width = `${size}px`;
+                particle.style.height = `${size}px`;
+                
+                // Random position
+                particle.style.left = `${Math.random() * 100}vw`;
+                particle.style.top = `${Math.random() * 100}vh`;
+                
+                // Random animation duration
+                particle.style.animationDuration = `${Math.random() * 20 + 10}s`;
+                
+                // Random delay
+                particle.style.animationDelay = `${Math.random() * 5}s`;
+                
+                particlesContainer.appendChild(particle);
+            }
+        }
+        
+        createParticles();
+        window.addEventListener('resize', createParticles);
+        
+        // Elements
+        const textInput = document.getElementById('textInput');
+        const resultElement = document.getElementById('result');
+        const loader = document.getElementById('loader');
+        const clearBtn = document.getElementById('clearBtn');
+        const historyList = document.getElementById('historyList');
+        const clearHistoryBtn = document.getElementById('clearHistoryBtn');
+        const voiceInputBtn = document.getElementById('voiceInputBtn');
+        const readResultBtn = document.getElementById('readResultBtn');
+        const voiceStatus = document.getElementById('voiceStatus');
+        const predictBtn = document.getElementById('predictBtn');
+        
+        // Voice recognition setup
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        const SpeechSynthesis = window.speechSynthesis;
+        
+        if (!SpeechRecognition) {
+            voiceInputBtn.disabled = true;
+            voiceInputBtn.innerHTML = '<i class="fas fa-microphone-slash"></i> Not Supported';
+            voiceStatus.textContent = "Voice recognition is not supported in this browser. Try Chrome or Edge.";
+        }
+        
+        if (!SpeechSynthesis) {
+            readResultBtn.disabled = true;
+            readResultBtn.innerHTML = '<i class="fas fa-volume-mute"></i> Not Supported';
+        }
+        
+        // Initialize speech recognition
+        if (SpeechRecognition) {
+            const recognition = new SpeechRecognition();
+            recognition.continuous = false;
+            recognition.lang = 'en-US';
+            recognition.interimResults = false;
+            recognition.maxAlternatives = 1;
+            
+            let isListening = false;
+            
+            voiceInputBtn.addEventListener('click', () => {
+                if (isListening) {
+                    // Stop listening
+                    recognition.stop();
+                    voiceInputBtn.classList.remove('listening');
+                    voiceInputBtn.innerHTML = '<i class="fas fa-microphone"></i> Voice Input';
+                    voiceStatus.textContent = "Voice input stopped.";
+                    isListening = false;
+                } else {
+                    // Start listening
+                    recognition.start();
+                    voiceInputBtn.classList.add('listening');
+                    voiceInputBtn.innerHTML = '<i class="fas fa-microphone"></i> Listening...';
+                    voiceStatus.textContent = "Listening... Speak now.";
+                    isListening = true;
+                }
+            });
+            
+            recognition.onresult = (event) => {
+                const speechResult = event.results[0][0].transcript;
+                textInput.value = speechResult;
+                voiceStatus.textContent = `Recognized: "${speechResult}"`;
+                
+                // Auto predict after voice input
+                predictNextWord();
+            };
+            
+            recognition.onspeechend = () => {
+                recognition.stop();
+                voiceInputBtn.classList.remove('listening');
+                voiceInputBtn.innerHTML = '<i class="fas fa-microphone"></i> Voice Input';
+                isListening = false;
+            };
+            
+            recognition.onerror = (event) => {
+                voiceStatus.textContent = `Error occurred in recognition: ${event.error}`;
+                voiceInputBtn.classList.remove('listening');
+                voiceInputBtn.innerHTML = '<i class="fas fa-microphone"></i> Voice Input';
+                isListening = false;
+            };
+        }
+        
+        // Text-to-speech functionality
+        if (SpeechSynthesis) {
+            readResultBtn.addEventListener('click', () => {
+                const resultText = resultElement.textContent;
+                if (resultText && resultText !== "Your prediction will appear here") {
+                    // Stop any ongoing speech
+                    speechSynthesis.cancel();
+                    
+                    // Create a new speech utterance
+                    const utterance = new SpeechSynthesisUtterance(resultText);
+                    utterance.lang = 'en-US';
+                    
+                    // Optional: adjust speech rate and pitch
+                    utterance.rate = 1.0; // 0.1 to 10
+                    utterance.pitch = 1.0; // 0 to 2
+                    
+                    // Speak the text
+                    speechSynthesis.speak(utterance);
+                    
+                    voiceStatus.textContent = "Reading prediction aloud...";
+                    
+                    utterance.onend = () => {
+                        voiceStatus.textContent = "Finished reading.";
+                        setTimeout(() => {
+                            voiceStatus.textContent = "";
+                        }, 3000);
+                    };
+                } else {
+                    voiceStatus.textContent = "No prediction to read.";
+                    setTimeout(() => {
+                        voiceStatus.textContent = "";
+                    }, 3000);
+                }
+            });
+        }
+        
+        // Load prediction history from localStorage
+        let predictionHistory = JSON.parse(localStorage.getItem('predictionHistory')) || [];
+        
+        // Update history display
+        function updateHistoryDisplay() {
+            if (predictionHistory.length === 0) {
+                historyList.innerHTML = '<div class="empty-history">No predictions yet</div>';
+                return;
+            }
+            
+            historyList.innerHTML = '';
+            
+            // Display most recent predictions first
+            predictionHistory.slice().reverse().forEach((item, index) => {
+                const historyItem = document.createElement('div');
+                historyItem.className = 'history-item';
+                historyItem.innerHTML = `
+                    <div class="history-text">
+                        <div class="history-input">${item.input}</div>
+                        <div class="history-prediction">${item.prediction}</div>
+                    </div>
+                    <div class="history-actions">
+                        <button class="history-action" onclick="useHistoryItem(${predictionHistory.length - 1 - index})">
+                            <i class="fas fa-redo"></i>
+                        </button>
+                        <button class="history-action" onclick="removeHistoryItem(${predictionHistory.length - 1 - index})">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                `;
+                historyList.appendChild(historyItem);
+            });
+        }
+        
+        // Initialize history display
+        updateHistoryDisplay();
+        
+        // Use a history item
+        function useHistoryItem(index) {
+            const item = predictionHistory[index];
+            textInput.value = item.input;
+            resultElement.innerHTML = `Your prediction will appear here`;
+            textInput.focus();
+        }
+        
+        // Remove a history item
+        function removeHistoryItem(index) {
+            predictionHistory.splice(index, 1);
+            localStorage.setItem('predictionHistory', JSON.stringify(predictionHistory));
+            updateHistoryDisplay();
+        }
+        
+        // Clear all history
+        clearHistoryBtn.addEventListener('click', () => {
+            if (confirm('Are you sure you want to clear all prediction history?')) {
+                predictionHistory = [];
+                localStorage.setItem('predictionHistory', JSON.stringify(predictionHistory));
+                updateHistoryDisplay();
+            }
+        });
+        
+        // Clear input and result
+        clearBtn.addEventListener('click', () => {
+            textInput.value = '';
+            resultElement.innerHTML = 'Your prediction will appear here';
+            textInput.focus();
+        });
+        
+        // Real-time prediction with debounce
+        let debounceTimer;
+        textInput.addEventListener('input', () => {
+            clearTimeout(debounceTimer);
+            
+            if (textInput.value.trim().length > 5) {
+                debounceTimer = setTimeout(() => {
+                    predictNextWord(true);
+                }, 800);
+            }
+        });
+        
+        // Handle Enter key press
+        textInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                predictNextWord();
+            }
+        });
+        
+        // Add click event to predict button
+        predictBtn.addEventListener('click', () => {
+            predictNextWord();
+        });
+        
+        // Predict next word function
+        async function predictNextWord(isRealtime = false) {
+            const text = textInput.value.trim();
+            
+            if (!text) {
+                resultElement.innerHTML = "Please enter some text first!";
+                return;
+            }
+            
+            if (!isRealtime) {
+                // Show loading indicator only for manual predictions
+                resultElement.style.opacity = '0.5';
+                loader.style.display = 'block';
+            }
+            
+            try {
+                const response = await fetch("/predict", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({ text })
+                });
+                
+                const data = await response.json();
+                
+                // Hide loader
+                loader.style.display = 'none';
+                resultElement.style.opacity = '1';
+                
+                if (data.error) {
+                    resultElement.innerHTML = `<span class="error">Error: ${data.error}</span>`;
+                } else {
+                    // Format the result to highlight the prediction
+                    const inputWords = text.split(' ');
+                    const predictedText = data.prediction;
+                    
+                    // Extract just the predicted word(s)
+                    const predictedWords = predictedText.replace(text, '').trim();
+                    
+                    resultElement.innerHTML = `
+                        ${text} <span class="prediction-highlight">${predictedWords}</span>
+                    `;
+                    
+                    // Add to history if it's a manual prediction
+                    if (!isRealtime) {
+                        // Add to history (limit to 10 items)
+                        predictionHistory.push({
+                            input: text,
+                            prediction: predictedText
+                        });
+                        
+                        if (predictionHistory.length > 10) {
+                            predictionHistory.shift();
+                        }
+                        
+                        localStorage.setItem('predictionHistory', JSON.stringify(predictionHistory));
+                        updateHistoryDisplay();
+                    }
+                }
+            } catch (error) {
+                loader.style.display = 'none';
+                resultElement.style.opacity = '1';
+                resultElement.innerHTML = `<span class="error">Network error: Could not connect to the prediction service</span>`;
+            }
+        }
+        
+        // Make useHistoryItem and removeHistoryItem globally accessible
+        window.useHistoryItem = useHistoryItem;
+        window.removeHistoryItem = removeHistoryItem;
+        
+        // Add visual feedback when clicking buttons
+        document.querySelectorAll('button').forEach(button => {
+            button.addEventListener('mousedown', () => {
+                button.style.transform = 'scale(0.95)';
+            });
+            
+            button.addEventListener('mouseup', () => {
+                button.style.transform = '';
+            });
+            
+            button.addEventListener('mouseleave', () => {
+                button.style.transform = '';
+            });
+        });
+        
+        // Initial focus
+        window.addEventListener
+        // Initial focus
+        window.addEventListener('load', () => {
+            textInput.focus();
+            
+            // Welcome animation
+            const predictorCard = document.querySelector('.predictor-card');
+            predictorCard.style.opacity = '0';
+            predictorCard.style.transform = 'translateY(20px)';
+            
+            setTimeout(() => {
+                predictorCard.style.opacity = '1';
+                predictorCard.style.transform = 'translateY(0)';
+            }, 300);
+            
+            // Add some interactive behavior to falling letters
+            document.addEventListener('mousemove', (e) => {
+                // Get mouse position
+                const mouseX = e.clientX;
+                const mouseY = e.clientY;
+                
+                // Get all letters
+                const letters = document.querySelectorAll('.letter');
+                
+                // Apply subtle movement to letters near the mouse
+                letters.forEach(letter => {
+                    const rect = letter.getBoundingClientRect();
+                    const letterX = rect.left + rect.width / 2;
+                    const letterY = rect.top + rect.height / 2;
+                    
+                    // Calculate distance between mouse and letter
+                    const distance = Math.sqrt(
+                        Math.pow(mouseX - letterX, 2) + 
+                        Math.pow(mouseY - letterY, 2)
+                    );
+                    
+                    // If mouse is close to letter (within 100px), apply subtle movement
+                    if (distance < 100) {
+                        // Calculate movement amount (closer = more movement)
+                        const moveAmount = (100 - distance) / 10;
+                        
+                        // Calculate direction
+                        const directionX = (mouseX - letterX) > 0 ? -1 : 1;
+                        const directionY = (mouseY - letterY) > 0 ? -1 : 1;
+                        
+                        // Apply transform
+                        letter.style.transform = `translate(${moveAmount * directionX}px, ${moveAmount * directionY}px)`;
+                    } else {
+                        // Reset transform if mouse is far away
+                        letter.style.transform = '';
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>
+
